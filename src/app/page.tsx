@@ -1,179 +1,60 @@
-"use client";
-
-import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import Link from "next/link";
-import { useState } from "react";
 
-type Partner = {
-  id: string;
-  name: string;
-  neighborhood: string;
-  urgency: "Critical" | "Urgent" | "Elevated";
-  need: number;
-  capacity: number;
-  recentlyReceived: number;
-  travel: string;
-  travelMinutes: number;
-  dietaryFit: string;
-  accent: string;
-};
+import { AmbientGlow, LandingIntro, LandingLift, LandingReveal } from "@/components/landing-motion";
 
-const partners: Partner[] = [
-  {
-    id: "harbor",
-    name: "Harbor House",
-    neighborhood: "Downtown",
-    urgency: "Critical",
-    need: 80,
-    capacity: 100,
-    recentlyReceived: 0,
-    travel: "8 min away",
-    travelMinutes: 8,
-    dietaryFit: "Vegan-ready",
-    accent: "bg-rose-500",
-  },
-  {
-    id: "northstar",
-    name: "North Star Shelter",
-    neighborhood: "Riverside",
-    urgency: "Urgent",
-    need: 65,
-    capacity: 70,
-    recentlyReceived: 20,
-    travel: "14 min away",
-    travelMinutes: 14,
-    dietaryFit: "Vegan-ready",
-    accent: "bg-amber-500",
-  },
-  {
-    id: "cedar",
-    name: "Cedar Community Fridge",
-    neighborhood: "East Market",
-    urgency: "Elevated",
-    need: 45,
-    capacity: 60,
-    recentlyReceived: 90,
-    travel: "11 min away",
-    travelMinutes: 11,
-    dietaryFit: "Vegan-ready",
-    accent: "bg-sky-500",
-  },
+const roles = [
+  { eyebrow: "FOR DONORS", title: "Turn surplus into a rescue in minutes.", description: "Share what is available, when it can be collected, and when it expires. A verified local team takes it from there.", tone: "bg-[#edf3df] text-[#385631]", symbol: "↗" },
+  { eyebrow: "FOR COORDINATORS", title: "Keep a whole rescue network in motion.", description: "Review supply, see partner capacity, approve an explainable plan, and dispatch the right handoffs.", tone: "bg-[#e8eef8] text-[#294f86]", symbol: "⌘" },
+  { eyebrow: "FOR FIELD TEAMS", title: "Give every volunteer one clear next move.", description: "Claim a pickup, confirm collection, and close the loop with a reliable delivery record.", tone: "bg-[#f8e9dc] text-[#9a4b28]", symbol: "✓" },
 ];
 
-const urgencyScore = { Critical: 65, Urgent: 45, Elevated: 25 };
+const steps = [
+  ["01", "Receive", "A donor lists food with a collection window, portions, dietary tags, and expiry."],
+  ["02", "Decide", "The coordinator reviews a transparent allocation recommendation built from live partner needs."],
+  ["03", "Move", "A confirmed plan creates pickup tasks for volunteers—then every handoff is tracked to delivery."],
+] as const;
 
-function score(partner: Partner) {
-  return urgencyScore[partner.urgency] + 60 + 20 + Math.max(0, 30 - partner.recentlyReceived / 10) - partner.travelMinutes / 2;
+function ArrowIcon() {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-4"><path d="M3 10h13M11 4l6 6-6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>;
 }
 
 export default function Home() {
-  const [confirmed, setConfirmed] = useState(false);
-  const [delivered, setDelivered] = useState<string[]>([]);
-  const [showReason, setShowReason] = useState("harbor");
-  const allocation = [...partners]
-    .sort((a, b) => score(b) - score(a))
-    .reduce<{ items: Array<Partner & { portions: number; score: number }>; remaining: number }>(
-      (result, partner) => {
-        const portions = Math.min(
-          result.remaining,
-          partner.need,
-          partner.capacity,
-        );
+  return <LandingIntro><main className="min-h-screen overflow-hidden bg-[#f6f7f2] text-[#18231e]">
+    <header className="relative z-10 mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
+      <Link href="/" className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded-2xl bg-[#173d2a] text-lg font-black text-[#eaf2d4] shadow-[0_8px_24px_rgba(23,61,42,.18)]">L</span><span><span className="block text-base font-bold tracking-tight">Last Mile</span><span className="block text-[11px] font-medium tracking-[.12em] text-[#708077]">FOOD RESCUE OS</span></span></Link>
+      <nav className="hidden items-center gap-7 text-sm font-semibold text-[#516159] md:flex"><a href="#how-it-works" className="transition hover:text-[#183d2a]">How it works</a><a href="#for-teams" className="transition hover:text-[#183d2a]">For teams</a><Link href="/sign-in" className="transition hover:text-[#183d2a]">Sign in</Link><Link href="/sign-up" className="rounded-full bg-[#183d2a] px-5 py-2.5 text-white shadow-[0_8px_18px_rgba(24,61,42,.18)] transition hover:-translate-y-0.5 hover:bg-[#285d3c]">Create a workspace</Link></nav>
+      <Link href="/sign-up" className="rounded-full bg-[#183d2a] px-4 py-2.5 text-sm font-bold text-white md:hidden">Start</Link>
+    </header>
 
-        return {
-          items: [...result.items, { ...partner, portions, score: Math.round(score(partner)) }],
-          remaining: result.remaining - portions,
-        };
-      },
-      { items: [], remaining: 180 },
-    ).items;
-  const allocated = allocation.reduce((total, item) => total + item.portions, 0);
+    <section className="relative mx-auto max-w-7xl px-6 pb-20 pt-8 lg:px-10 lg:pb-28 lg:pt-14"><AmbientGlow />
+      <div className="relative grid items-center gap-12 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
+        <LandingReveal delay={0.05}><div>
+          <div className="inline-flex items-center gap-2 rounded-full border border-[#cbd9c6] bg-white/70 px-3 py-1.5 text-xs font-bold tracking-[.13em] text-[#42694d] shadow-sm backdrop-blur"><span className="size-1.5 rounded-full bg-[#4b8c5b]" /> RESCUE WORKFLOWS, NOT JUST LISTINGS</div>
+          <h1 className="mt-6 max-w-3xl text-5xl font-semibold leading-[.98] tracking-[-.055em] text-[#17251d] sm:text-6xl lg:text-7xl">Food has a clock.<br /><span className="text-[#4e8060]">Your response should too.</span></h1>
+          <p className="mt-7 max-w-xl text-base leading-7 text-[#617068] sm:text-lg">Last Mile gives food-rescue teams one calm, connected place to turn expiring surplus into a completed delivery—with context, accountability, and a clear next move for everyone.</p>
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row"><Link href="/donate" className="group inline-flex items-center justify-center gap-2 rounded-full bg-[#183d2a] px-6 py-3.5 text-sm font-bold text-white shadow-[0_12px_24px_rgba(24,61,42,.2)] transition hover:-translate-y-0.5 hover:bg-[#285d3c]">List surplus food <ArrowIcon /></Link><Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-full border border-[#bccdbd] bg-white/80 px-6 py-3.5 text-sm font-bold text-[#285d3c] shadow-sm transition hover:-translate-y-0.5 hover:border-[#75a07f]">Coordinate a rescue <ArrowIcon /></Link></div>
+          <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm text-[#617068]"><span className="flex items-center gap-2"><span className="grid size-5 place-items-center rounded-full bg-[#e1efde] text-xs font-bold text-[#2d7045]">✓</span> No donor account required</span><span className="flex items-center gap-2"><span className="grid size-5 place-items-center rounded-full bg-[#e1efde] text-xs font-bold text-[#2d7045]">✓</span> Coordinator confirmation stays human</span></div>
+        </div></LandingReveal>
 
-  function completePickup(id: string) {
-    setDelivered((items) => (items.includes(id) ? items : [...items, id]));
-  }
-
-  return (
-    <main className="min-h-screen bg-[#f7f6f2] text-[#18231e]">
-      <header className="mx-auto flex max-w-7xl items-center justify-between px-6 py-6 lg:px-10">
-        <div className="flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-xl bg-[#183d2a] text-lg font-black text-[#e9f3d5]">L</div>
-          <div>
-            <p className="text-lg font-bold tracking-tight">Last Mile</p>
-            <p className="text-xs text-[#64736a]">Food rescue, coordinated</p>
-          </div>
-        </div>
-        <div className="hidden items-center gap-3 sm:flex">
-          <Link href="/donate" className="text-sm font-semibold text-[#285d3c] hover:text-[#183d2a]">List food</Link>
-          <Link href="/review" className="text-sm font-semibold text-[#285d3c] hover:text-[#183d2a]">Review queue</Link>
-          <span className="rounded-full bg-[#e5efe1] px-3 py-1.5 text-xs font-semibold text-[#2e6b45]">Demo workspace</span>
-          <OrganizationSwitcher
-            appearance={{
-              elements: {
-                rootBox: "max-w-[180px]",
-                organizationSwitcherTrigger: "rounded-xl border border-[#d8ded8] bg-white px-2 py-1.5 hover:bg-[#f2f6ed]",
-              },
-            }}
-            afterCreateOrganizationUrl="/onboarding"
-          />
-          <UserButton appearance={{ elements: { avatarBox: "size-9" } }} />
-        </div>
-      </header>
-
-      <div className="mx-auto max-w-7xl px-6 pb-14 lg:px-10">
-        <section className="overflow-hidden rounded-[2rem] bg-[#183d2a] px-7 py-8 text-[#f9f9f4] shadow-[0_24px_60px_rgba(24,61,42,0.18)] lg:px-10">
-          <div className="flex flex-col justify-between gap-8 md:flex-row md:items-end">
-            <div>
-              <p className="text-xs font-bold tracking-[0.2em] text-[#b6d59a]">LIVE ALLOCATION BOARD</p>
-              <h1 className="mt-3 max-w-2xl text-3xl font-semibold tracking-tight sm:text-4xl">180 meals have a home before the clock runs out.</h1>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-[#c9d8cd]">A transparent plan for today&apos;s donation from Green Fork Kitchen, expiring at 5:30 PM.</p>
-            </div>
-            <div className="flex gap-6 text-sm">
-              <div><p className="text-2xl font-semibold">1h 42m</p><p className="text-[#b9cbbd]">until expiry</p></div>
-              <div><p className="text-2xl font-semibold">{confirmed ? "3" : "0"}/3</p><p className="text-[#b9cbbd]">pickups dispatched</p></div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mt-7 grid gap-5 lg:grid-cols-[1.45fr_0.85fr]">
-          <div className="rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm sm:p-7">
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">RECOMMENDED PLAN</p>
-                <h2 className="mt-2 text-2xl font-semibold tracking-tight">Move every meal, fairly.</h2>
-              </div>
-              <div className="rounded-xl bg-[#f2f6ed] px-3 py-2 text-right"><p className="text-lg font-bold text-[#21633e]">{allocated} / 180</p><p className="text-xs text-[#718072]">meals allocated</p></div>
-            </div>
-
-            <div className="mt-6 space-y-3">
-              {allocation.map((item, index) => (
-                <button key={item.id} onClick={() => setShowReason(item.id)} className={`w-full rounded-2xl border p-4 text-left transition ${showReason === item.id ? "border-[#4d8b61] bg-[#f3f8f0] shadow-sm" : "border-[#eceae4] hover:border-[#a2bca8]"}`}>
-                  <div className="flex items-center gap-3">
-                    <div className={`grid size-9 place-items-center rounded-xl ${item.accent} text-sm font-bold text-white`}>{index + 1}</div>
-                    <div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-3"><p className="font-semibold">{item.name}</p><p className="font-bold tabular-nums">{item.portions} meals</p></div><p className="mt-1 text-sm text-[#6b786f]">{item.neighborhood} · {item.travel} · {item.dietaryFit}</p></div>
-                  </div>
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setConfirmed(true)} disabled={confirmed} className="mt-6 w-full rounded-xl bg-[#183d2a] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#275d42] disabled:cursor-default disabled:bg-[#609071]">{confirmed ? "Plan dispatched — pickup tasks are live" : "Confirm plan & dispatch 3 pickups"}</button>
-          </div>
-
-          <aside className="rounded-[1.75rem] border border-[#e5e2d9] bg-[#fcfbf7] p-6 shadow-sm sm:p-7">
-            {allocation.filter((item) => item.id === showReason).map((item) => <div key={item.id}>
-              <p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">WHY THIS ALLOCATION</p>
-              <h2 className="mt-2 text-2xl font-semibold tracking-tight">{item.name}</h2>
-              <p className="mt-2 text-sm leading-6 text-[#68776d]">Every recommendation is explainable, editable, and saved to the allocation record.</p>
-              <div className="mt-6 rounded-2xl bg-[#edf4e9] p-4"><p className="text-xs font-bold tracking-wide text-[#407353]">MATCH CONFIDENCE</p><p className="mt-1 text-3xl font-bold text-[#1d5937]">{item.score}<span className="text-base text-[#5f8469]"> / 175</span></p></div>
-              <ul className="mt-5 space-y-4 text-sm"><li className="flex gap-3"><span className="mt-0.5 text-[#397e50]">●</span><span><b>{item.urgency} need</b><br/><span className="text-[#6b786f]">This partner needs {item.need} meals today.</span></span></li><li className="flex gap-3"><span className="mt-0.5 text-[#397e50]">●</span><span><b>Time and dietary fit</b><br/><span className="text-[#6b786f]">They can receive before 5:30 PM and safely serve these vegan meals.</span></span></li><li className="flex gap-3"><span className="mt-0.5 text-[#397e50]">●</span><span><b>Fair access protected</b><br/><span className="text-[#6b786f]">Recent meals received: {item.recentlyReceived}. The plan avoids concentrating supply.</span></span></li><li className="flex gap-3"><span className="mt-0.5 text-[#397e50]">●</span><span><b>Low travel cost</b><br/><span className="text-[#6b786f]">A {item.travelMinutes}-minute route keeps this food moving.</span></span></li></ul>
-            </div>)}
-          </aside>
-        </section>
-
-        <section className="mt-7 rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm sm:p-7">
-          <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">VOLUNTEER HANDOFFS</p><h2 className="mt-2 text-2xl font-semibold tracking-tight">Close the loop, not just the match.</h2></div><p className="text-sm text-[#6b786f]">{delivered.length} of 3 deliveries confirmed</p></div>
-          <div className="mt-5 grid gap-3 md:grid-cols-3">{allocation.map((item) => { const isDelivered = delivered.includes(item.id); return <div key={item.id} className="rounded-2xl border border-[#eceae4] p-4"><div className="flex items-center justify-between"><p className="font-semibold">{item.name}</p><span className={`rounded-full px-2.5 py-1 text-xs font-bold ${isDelivered ? "bg-[#e4f2e3] text-[#287047]" : confirmed ? "bg-[#fff1d7] text-[#976412]" : "bg-[#f1f0ec] text-[#74746e]"}`}>{isDelivered ? "Delivered" : confirmed ? "Ready to claim" : "Awaiting dispatch"}</span></div><p className="mt-2 text-sm text-[#6b786f]">{item.portions} meals · {item.travel}</p><button disabled={!confirmed || isDelivered} onClick={() => completePickup(item.id)} className="mt-4 w-full rounded-lg border border-[#cedbd0] px-3 py-2 text-sm font-semibold text-[#285d3c] disabled:cursor-not-allowed disabled:opacity-45">{isDelivered ? "Handoff recorded" : "Confirm delivery"}</button></div>})}</div>
-        </section>
+        <LandingReveal delay={0.18} className="relative mx-auto w-full max-w-xl"><div aria-hidden="true" className="absolute -inset-8 rounded-[3rem] bg-[radial-gradient(circle_at_25%_20%,rgba(226,238,181,.9),transparent_36%),radial-gradient(circle_at_78%_66%,rgba(191,218,199,.85),transparent_34%)] blur-2xl" />
+          <div className="relative overflow-hidden rounded-[2rem] border border-white/70 bg-[#183d2a] p-5 shadow-[0_30px_80px_rgba(22,57,39,.25)] sm:p-6"><div className="absolute inset-x-0 top-0 h-28 bg-[linear-gradient(115deg,rgba(183,218,155,.16),transparent_55%)]" />
+            <div className="relative flex items-center justify-between"><div className="flex items-center gap-2"><span className="size-2 rounded-full bg-[#d77932]" /><span className="size-2 rounded-full bg-[#e5c667]" /><span className="size-2 rounded-full bg-[#9ccc83]" /></div><p className="text-[10px] font-bold tracking-[.18em] text-[#b5cbb9]">LIVE RESCUE BOARD</p></div>
+            <div className="relative mt-7 flex items-end justify-between gap-4"><div><p className="text-xs font-bold tracking-[.16em] text-[#b6d59a]">EXPIRING TODAY</p><h2 className="mt-2 text-2xl font-semibold text-white sm:text-3xl">180 meals,<br />one clear route.</h2></div><div className="rounded-2xl border border-white/15 bg-white/10 px-3 py-2 text-right"><p className="text-lg font-bold text-[#e9f3d5]">01:42</p><p className="text-[10px] font-semibold uppercase tracking-[.12em] text-[#b9cbbd]">to expiry</p></div></div>
+            <div className="relative mt-6 space-y-3"><div className="rounded-2xl border border-[#8aaa80]/35 bg-[#244b34] p-4"><div className="flex items-start justify-between gap-3"><div className="flex gap-3"><span className="grid size-9 place-items-center rounded-xl bg-[#d7ef8a] text-sm font-black text-[#173d2a]">1</span><div><p className="font-semibold text-white">Harbor House</p><p className="mt-0.5 text-xs text-[#c6d6c9]">Critical need · Downtown · 8 min away</p></div></div><p className="text-sm font-bold text-[#e9f3d5]">80 meals</p></div><div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full w-[88%] rounded-full bg-[#d7ef8a]" /></div></div><div className="grid grid-cols-2 gap-3"><div className="rounded-2xl bg-white/8 p-4"><p className="text-[10px] font-bold tracking-[.14em] text-[#b6d59a]">PARTNER FIT</p><p className="mt-2 text-sm font-semibold text-white">Vegan-ready</p></div><div className="rounded-2xl bg-white/8 p-4"><p className="text-[10px] font-bold tracking-[.14em] text-[#b6d59a]">NEXT MOVE</p><p className="mt-2 text-sm font-semibold text-white">Confirm dispatch</p></div></div></div>
+            <div className="relative mt-4 flex items-center justify-between rounded-2xl bg-[#d7ef8a] px-4 py-3 text-[#173d2a]"><span className="text-sm font-bold">Transparent plan ready to review</span><span className="grid size-7 place-items-center rounded-full bg-[#173d2a] text-[#d7ef8a]"><ArrowIcon /></span></div>
+          </div><div className="absolute -bottom-5 -left-4 rounded-2xl border border-[#dce6d9] bg-white px-4 py-3 shadow-[0_14px_34px_rgba(24,61,42,.13)]"><p className="text-[10px] font-bold tracking-[.13em] text-[#6a8570]">STATUS</p><p className="mt-1 text-sm font-bold text-[#285d3c]"><span className="mr-1.5 inline-block size-2 rounded-full bg-[#4e9b64]" />3 handoffs moving</p></div>
+        </LandingReveal>
       </div>
-    </main>
-  );
+    </section>
+
+    <LandingReveal><section className="border-y border-[#e1e5dc] bg-white/70 py-5"><div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-5 px-6 lg:px-10"><p className="text-sm font-semibold text-[#53635a]">Designed for the people who make food rescue work.</p><div className="flex flex-wrap items-center gap-x-7 gap-y-2 text-xs font-bold tracking-[.13em] text-[#718077]"><span>DONORS</span><span>COORDINATORS</span><span>PARTNER TEAMS</span><span>VOLUNTEERS</span></div></div></section></LandingReveal>
+
+    <section id="for-teams" className="mx-auto max-w-7xl px-6 py-24 lg:px-10"><LandingReveal><div className="max-w-2xl"><p className="text-xs font-bold tracking-[.2em] text-[#5b8265]">ONE NETWORK, CLEAR ROLES</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.04em] text-[#18231e] sm:text-5xl">Every person sees the work only they need to do.</h2></div></LandingReveal><div className="mt-12 grid gap-4 lg:grid-cols-3">{roles.map((role) => <LandingLift key={role.eyebrow}><article className={`min-h-72 rounded-[2rem] p-7 shadow-[0_0_0_rgba(35,65,44,0)] transition-shadow duration-300 hover:shadow-[0_22px_50px_rgba(35,65,44,.12)] ${role.tone}`}><div className="flex items-start justify-between"><p className="text-xs font-bold tracking-[.16em]">{role.eyebrow}</p><span className="grid size-10 place-items-center rounded-2xl bg-white/70 text-xl shadow-sm">{role.symbol}</span></div><h3 className="mt-14 max-w-xs text-2xl font-semibold tracking-[-.03em]">{role.title}</h3><p className="mt-4 max-w-sm text-sm leading-6 opacity-80">{role.description}</p></article></LandingLift>)}</div></section>
+
+    <section id="how-it-works" className="relative overflow-hidden bg-[#173d2a] py-24 text-white"><div aria-hidden="true" className="absolute right-[-9rem] top-[-12rem] size-[35rem] rounded-full border border-[#8db27a]/20" /><div aria-hidden="true" className="absolute right-8 top-16 size-[24rem] rounded-full border border-[#8db27a]/15" /><div className="relative mx-auto max-w-7xl px-6 lg:px-10"><LandingReveal><div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end"><div className="max-w-2xl"><p className="text-xs font-bold tracking-[.2em] text-[#b6d59a]">THE RESCUE LOOP</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.04em] sm:text-5xl">A better workflow for the last, most urgent mile.</h2></div><p className="max-w-sm text-sm leading-6 text-[#c6d6c9]">Last Mile combines a deterministic, explainable allocation engine with the real-world human confirmations that food safety demands.</p></div></LandingReveal><div className="mt-14 grid gap-5 lg:grid-cols-3">{steps.map(([number, title, description]) => <LandingLift key={number}><article className="rounded-[1.75rem] border border-white/12 bg-white/[.06] p-6 backdrop-blur"><p className="text-sm font-bold tracking-[.16em] text-[#b6d59a]">{number}</p><h3 className="mt-12 text-2xl font-semibold">{title}</h3><p className="mt-4 text-sm leading-6 text-[#c9d8cd]">{description}</p><div className="mt-8 flex items-center gap-2 text-sm font-bold text-[#e9f3d5]"><span>Move to the next step</span><ArrowIcon /></div></article></LandingLift>)}</div></div></section>
+
+    <LandingReveal><section className="mx-auto max-w-7xl px-6 py-24 lg:px-10"><div className="relative overflow-hidden rounded-[2.25rem] bg-[#d7ef8a] px-7 py-12 sm:px-12 sm:py-16"><div aria-hidden="true" className="absolute -right-24 -top-24 size-80 rounded-full border-[28px] border-[#b8d970]/45" /><div className="relative flex flex-col justify-between gap-8 lg:flex-row lg:items-end"><div className="max-w-2xl"><p className="text-xs font-bold tracking-[.2em] text-[#456234]">READY WHEN THE NEXT DONATION IS</p><h2 className="mt-4 text-4xl font-semibold tracking-[-.045em] text-[#183d2a] sm:text-5xl">Build a calmer, faster rescue operation.</h2><p className="mt-5 max-w-xl text-base leading-7 text-[#3c5b35]">Start a workspace, bring in your partner teams and volunteers, and make the next food rescue a completed handoff.</p></div><div className="flex flex-col gap-3 sm:flex-row"><Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-full bg-[#183d2a] px-6 py-3.5 text-sm font-bold text-white transition hover:bg-[#285d3c]">Create your workspace <ArrowIcon /></Link><Link href="/donate" className="inline-flex items-center justify-center rounded-full border border-[#779653] bg-white/50 px-6 py-3.5 text-sm font-bold text-[#285d3c] transition hover:bg-white">List available food</Link></div></div></div></section></LandingReveal>
+
+    <footer className="border-t border-[#e1e5dc] px-6 py-8"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 text-sm text-[#68776d] sm:flex-row lg:px-4"><p>© 2026 Last Mile. Food rescue, coordinated.</p><div className="flex gap-5"><Link href="/donate" className="font-semibold text-[#285d3c]">Donate food</Link><Link href="/sign-in" className="font-semibold text-[#285d3c]">Team sign in</Link></div></div></footer>
+  </main></LandingIntro>;
 }

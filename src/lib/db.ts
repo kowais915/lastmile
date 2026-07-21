@@ -2,6 +2,8 @@ import "server-only";
 
 import { neon } from "@neondatabase/serverless";
 
+import { STARTER_NETWORK } from "@/db/starter-network";
+
 import { getDatabaseUrl } from "@/lib/env";
 import { recommendAllocations } from "@/lib/allocation";
 
@@ -249,16 +251,10 @@ export async function seedStarterPartners(organizationId: string) {
 
   const now = new Date();
   const availableUntil = new Date(now.getTime() + 12 * 3_600_000);
-  const starterPartners = [
-    ["Harbor House", "Downtown", 1, 80, 100, "critical"],
-    ["North Star Shelter", "Riverside", 2, 65, 70, "urgent"],
-    ["Cedar Community Fridge", "East Market", 1, 45, 60, "elevated"],
-  ] as const;
-
-  for (const [name, area, travelBand, requested, capacity, urgency] of starterPartners) {
+  for (const partner of STARTER_NETWORK) {
     const partners = await sql()`
-      INSERT INTO partners (organization_id, name, service_area, travel_band)
-      VALUES (${organizationId}, ${name}, ${area}, ${travelBand}) RETURNING id
+      INSERT INTO partners (organization_id, name, service_area, travel_band, latitude, longitude)
+      VALUES (${organizationId}, ${partner.name}, ${partner.serviceArea}, ${partner.travelBand}, ${partner.latitude}, ${partner.longitude}) RETURNING id
     `;
     const partnerId = String((partners[0] as Record<string, unknown>).id);
     await sql()`
@@ -266,8 +262,8 @@ export async function seedStarterPartners(organizationId: string) {
         organization_id, partner_id, requested_portions, remaining_capacity,
         urgency, dietary_tags, available_from, available_until
       ) VALUES (
-        ${organizationId}, ${partnerId}, ${requested}, ${capacity},
-        ${urgency}, ${["vegan"]}, ${now}, ${availableUntil}
+        ${organizationId}, ${partnerId}, ${partner.requestedPortions}, ${partner.remainingCapacity},
+        ${partner.urgency}, ${["vegan"]}, ${now}, ${availableUntil}
       )
     `;
   }
@@ -427,7 +423,7 @@ export async function updateManagedPartnerNeed({ organizationId, userId, request
 }
 
 export async function getCoordinatorDashboard(organizationId: string) {
-  const [draftPlans, tasks, mapRoutes, pendingSubmissions] = await Promise.all([
+  const [draftPlans, tasks, mapRoutes, networkPoints, pendingSubmissions] = await Promise.all([
     sql()`SELECT plan.id, donation.donor_name, donation.expires_at, item.name AS item_name, item.available_portions,
       COALESCE(jsonb_agg(jsonb_build_object('partner', partner.name, 'portions', allocation.portions, 'score', allocation.score, 'reason', allocation.explanation) ORDER BY allocation.score DESC)
         FILTER (WHERE allocation.id IS NOT NULL), '[]'::jsonb) AS allocations
@@ -458,6 +454,12 @@ export async function getCoordinatorDashboard(organizationId: string) {
       WHERE task.organization_id = ${organizationId} AND task.status <> 'delivered'
       ORDER BY donation.collection_window_end ASC
       LIMIT 80`,
+    sql()`SELECT partner.id, partner.name, partner.service_area,
+      (to_jsonb(partner) ->> 'latitude')::double precision AS latitude,
+      (to_jsonb(partner) ->> 'longitude')::double precision AS longitude
+      FROM partners partner
+      WHERE partner.organization_id = ${organizationId} AND partner.active = true
+      ORDER BY partner.name ASC`,
     sql()`SELECT id, donor_name, item_name, portions, expires_at, collection_window_end,
       count(*) OVER ()::int AS total_pending
       FROM donation_submissions
@@ -479,6 +481,16 @@ export async function getCoordinatorDashboard(organizationId: string) {
         destination: { name: String(route.partner_name), detail: route.partner_service_area ? String(route.partner_service_area) : null, latitude: route.partner_latitude === null ? null : Number(route.partner_latitude), longitude: route.partner_longitude === null ? null : Number(route.partner_longitude) },
       };
     }),
+    networkPoints: networkPoints.map((row) => {
+      const partner = row as Record<string, unknown>;
+      return {
+        id: String(partner.id),
+        name: String(partner.name),
+        detail: partner.service_area ? String(partner.service_area) : null,
+        latitude: partner.latitude === null ? null : Number(partner.latitude),
+        longitude: partner.longitude === null ? null : Number(partner.longitude),
+      };
+    }),
     pendingSubmissionCount: pendingSubmissions[0]
       ? Number((pendingSubmissions[0] as Record<string, unknown>).total_pending)
       : 0,
@@ -494,7 +506,7 @@ export async function getCoordinatorDashboard(organizationId: string) {
 }
 
 export async function getOperationsIntelligence(organizationId: string) {
-  const [impactRows, signalRows, capacityRows] = await Promise.all([
+  const [impactRows, signalRows, capacityRows, trendRows] = await Promise.all([
     sql()`WITH task_metrics AS (
       SELECT
         COALESCE(SUM(allocation.portions) FILTER (WHERE task.status = 'delivered'), 0)::int AS meals_rescued,
@@ -571,6 +583,28 @@ export async function getOperationsIntelligence(organizationId: string) {
       WHERE partner.organization_id = ${organizationId} AND partner.active = true
       ORDER BY (need.remaining_capacity::numeric / NULLIF(need.requested_portions, 0)) ASC, need.available_until ASC
       LIMIT 5`,
+    sql()`WITH days AS (
+        SELECT generate_series(current_date - interval '6 days', current_date, interval '1 day')::date AS day
+      ), deliveries AS (
+        SELECT date_trunc('day', task.delivered_at)::date AS day, COALESCE(SUM(allocation.portions), 0)::int AS delivered_meals
+        FROM pickup_tasks task
+        JOIN allocations allocation ON allocation.id = task.allocation_id
+        WHERE task.organization_id = ${organizationId} AND task.status = 'delivered' AND task.delivered_at IS NOT NULL
+          AND task.delivered_at >= current_date - interval '6 days'
+        GROUP BY date_trunc('day', task.delivered_at)::date
+      ), dispatches AS (
+        SELECT date_trunc('day', task.created_at)::date AS day, COUNT(*)::int AS dispatched_handoffs
+        FROM pickup_tasks task
+        WHERE task.organization_id = ${organizationId} AND task.created_at >= current_date - interval '6 days'
+        GROUP BY date_trunc('day', task.created_at)::date
+      )
+      SELECT to_char(days.day, 'Dy') AS label,
+        COALESCE(deliveries.delivered_meals, 0)::int AS delivered_meals,
+        COALESCE(dispatches.dispatched_handoffs, 0)::int AS dispatched_handoffs
+      FROM days
+      LEFT JOIN deliveries ON deliveries.day = days.day
+      LEFT JOIN dispatches ON dispatches.day = days.day
+      ORDER BY days.day ASC`,
   ]);
 
   const impact = (impactRows[0] ?? {}) as Record<string, unknown>;
@@ -599,6 +633,14 @@ export async function getOperationsIntelligence(organizationId: string) {
         name: String(capacity.name), requestedPortions: Number(capacity.requested_portions),
         remainingCapacity: Number(capacity.remaining_capacity), urgency: String(capacity.urgency),
         availableUntil: new Date(String(capacity.available_until)).toISOString(),
+      };
+    }),
+    deliveryTrend: trendRows.map((row) => {
+      const trend = row as Record<string, unknown>;
+      return {
+        label: String(trend.label).trim(),
+        deliveredMeals: Number(trend.delivered_meals),
+        dispatchedHandoffs: Number(trend.dispatched_handoffs),
       };
     }),
   };

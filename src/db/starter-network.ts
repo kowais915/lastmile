@@ -1,0 +1,32 @@
+export const STARTER_NETWORK = [
+  {
+    name: "Harbor House",
+    serviceArea: "Downtown",
+    travelBand: 1,
+    latitude: 37.7749,
+    longitude: -122.4194,
+    requestedPortions: 80,
+    remainingCapacity: 100,
+    urgency: "critical",
+  },
+  {
+    name: "North Star Shelter",
+    serviceArea: "Riverside",
+    travelBand: 2,
+    latitude: 37.7845,
+    longitude: -122.407,
+    requestedPortions: 65,
+    remainingCapacity: 70,
+    urgency: "urgent",
+  },
+  {
+    name: "Cedar Community Fridge",
+    serviceArea: "East Market",
+    travelBand: 1,
+    latitude: 37.7649,
+    longitude: -122.428,
+    requestedPortions: 45,
+    remainingCapacity: 60,
+    urgency: "elevated",
+  },
+] as const;

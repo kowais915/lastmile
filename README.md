@@ -27,6 +27,17 @@ Food-rescue teams make urgent, high-consequence choices with fragmented informat
 
 Last Mile is a role-aware rescue workspace that moves a donation from public listing to reviewed allocation to volunteer-confirmed delivery—while preserving the reasons behind every decision.
 
+## Why this is Work & Productivity
+
+Last Mile is workflow software for a time-critical, multi-team operation. It replaces a coordinator's fragmented texts, spreadsheets, and status follow-ups with one shared operating system:
+
+- **Workflow orchestration:** an approved donation becomes an explainable allocation plan, then coordinator-confirmed pickup tasks—without losing responsibility between teams.
+- **Operational automation:** rules continuously surface expiring intake, unsigned plans, unclaimed pickups, and quiet in-progress handoffs in a prioritized signal queue.
+- **Shared live context:** partner capacity, dietary fit, collection windows, and expiry risk are visible at the decision point instead of being reconstructed from messages.
+- **Performance visibility:** meals rescued, before-expiry delivery, time to dispatch, volunteer coverage, and on-time delivery turn operational work into measurable outcomes.
+
+Automation accelerates awareness and routing; it never silently allocates food or dispatches volunteers. The coordinator remains the accountable decision-maker.
+
 ## What is working
 
 | Actor | Purpose | Product surface |
@@ -53,14 +64,21 @@ flowchart TB
   task --> collect["Collected"] --> deliver["Delivered + optional field note"]
   deliver --> audit["Auditable rescue outcome<br/>Live status for the whole workspace"]
 
+  intake -. "expiry signal" .-> ops["Operations intelligence<br/>Prioritized alerts · capacity coverage · impact metrics"]
+  partner -. "capacity signal" .-> ops
+  task -. "handoff signal" .-> ops
+  ops -->|"what needs attention"| coordinator
+
   classDef entry fill:#eef6ec,stroke:#4d8b61,color:#18231e,stroke-width:2px;
   classDef decision fill:#183d2a,stroke:#183d2a,color:#ffffff,stroke-width:2px;
   classDef action fill:#f7f0df,stroke:#b38027,color:#18231e,stroke-width:2px;
   classDef outcome fill:#e7effb,stroke:#4b76b9,color:#18231e,stroke-width:2px;
+  classDef intelligence fill:#f2ecdc,stroke:#b38027,color:#18231e,stroke-width:2px;
   class donor,partner,volunteer,intake entry;
   class review,engine,draft,coordinator decision;
   class task,collect,deliver action;
   class audit outcome;
+  class ops intelligence;
 ```
 
 ### Core capabilities
@@ -73,6 +91,8 @@ flowchart TB
 - Coordinator invitations that assign either a partner manager (and their partner) or a volunteer before they enter the workspace.
 - Volunteer claim, collection, and delivery lifecycle with an audit trail.
 - Operations intelligence dashboard with meals rescued, before-expiry delivery, dispatch time, partner-capacity coverage, and live risk signals for expiring intake, unsigned plans, unclaimed pickups, and stalled handoffs.
+- Apache ECharts operational pulse visualizing the latest seven days of delivered meals and dispatched handoffs from the active workspace&apos;s records.
+- Full-width operational route map for coordinator and volunteer context, with pickup/destination pins and clearly scoped route lines when location data is available.
 - Tenant-scoped Neon Postgres data so each rescue organization sees only its own operations.
 
 The data model and allocation rationale are documented in [docs/blueprint.md](docs/blueprint.md).
@@ -91,6 +111,7 @@ flowchart TB
   clerk["Clerk<br/>Authentication, organizations, invitations"]
   next["Next.js 16 App Router<br/>Server Components · Server Actions · role gates"]
   neon[("Neon Postgres<br/>Tenant-scoped operational database")]
+  intelligence["Operations intelligence<br/>Rule-based alerts · capacity coverage · impact metrics"]
 
   public --> next
   coordinatorUI --> clerk
@@ -98,6 +119,8 @@ flowchart TB
   volunteerUI --> clerk
   clerk --> next
   next --> neon
+  neon --> intelligence
+  intelligence --> coordinatorUI
 
   subgraph data["Core operational records"]
     workspaces["Organizations + memberships<br/>Roles and partner assignments"]
@@ -115,9 +138,11 @@ flowchart TB
   classDef service fill:#183d2a,stroke:#183d2a,color:#ffffff,stroke-width:2px;
   classDef store fill:#e7effb,stroke:#4b76b9,color:#18231e,stroke-width:2px;
   classDef record fill:#f7f0df,stroke:#b38027,color:#18231e,stroke-width:1.5px;
+  classDef automation fill:#eef6ec,stroke:#4d8b61,color:#18231e,stroke-width:2px;
   class public,coordinatorUI,partnerUI,volunteerUI surface;
   class clerk,next service;
   class neon store;
+  class intelligence automation;
   class workspaces,supply,allocation,handoffs record;
 ```
 
@@ -127,10 +152,10 @@ Last Mile is designed to demonstrate the four judging dimensions directly:
 
 | Criterion | Evidence in Last Mile |
 | --- | --- |
-| Technological implementation | A working Next.js application with Clerk-authenticated organizations, Neon operational data, role gates, server-side actions, and an end-to-end dispatch workflow. |
-| Design | Each actor lands in a focused workspace with only the next decision or action they need to make. |
+| Technological implementation | A working Next.js application with Clerk-authenticated organizations, tenant-scoped Neon operations data, role gates, server-side actions, rule-based alerting, and an end-to-end dispatch workflow. |
+| Design | Each actor lands in a focused workspace with only the next decision or action they need to make; coordinators also get a calm, prioritized operations view instead of another raw data table. |
 | Potential impact | It targets a concrete operational failure: safe food goes to waste when expiring supply cannot be matched and collected in time. |
-| Quality of idea | It treats fairness and allocation rationale as operational data—not opaque output—so rescue teams can explain and audit every handoff. |
+| Quality of idea | It combines explainable allocation with productivity automation: risk is detected and routed quickly, but allocation and dispatch remain auditable human decisions. |
 
 ## Built with Codex and GPT-5.6
 
@@ -149,6 +174,7 @@ There is **no runtime OpenAI API dependency**: the value to the end user comes f
 
 - [Next.js 16](https://nextjs.org) + [React 19](https://react.dev) + [TypeScript](https://www.typescriptlang.org) for the application.
 - [Tailwind CSS](https://tailwindcss.com) for the interface.
+- [Apache ECharts 6](https://echarts.apache.org) for accessible, responsive operations analytics rendered in the browser.
 - [Clerk](https://clerk.com) for sign-in, organization membership, invitations, and active-workspace context.
 - [Neon](https://neon.com) + [PostgreSQL](https://www.postgresql.org) for serverless, tenant-scoped operational data.
 - [Vercel](https://vercel.com) for deployment.
@@ -184,6 +210,12 @@ Set these values in `.env.local` before starting the app:
 
 Apply [src/db/schema.sql](src/db/schema.sql) to a new Neon database or branch before using the application. For an existing database, apply only the migrations that have not already been applied—do not replay `CREATE TYPE`, `CREATE TABLE`, or `ALTER TABLE` statements blindly against production.
 
+### Starter data
+
+New coordinator workspaces are seeded once with three starter community partners and a current capacity record for each: Harbor House, North Star Shelter, and Cedar Community Fridge. The exact seed fixture is versioned in [src/db/starter-network.ts](src/db/starter-network.ts) and is inserted by [seedStarterPartners](src/lib/db.ts#L246) during coordinator onboarding.
+
+This is **not hardcoded dashboard content**. The coordinator, partner, volunteer, map, metrics, automated signal queue, and ECharts pulse all query the active organization&apos;s tenant-scoped Neon records at request time. The starter fixture exists only to make a new workspace useful on first run; donations, allocations, handoffs, delivery events, and analytics are created through the real workflow.
+
 ### Quality checks
 
 ```bash
@@ -198,7 +230,7 @@ pnpm build
 3. As a partner manager, update capacity, urgency, dietary needs, and availability.
 4. Submit a public donation at `/donate`.
 5. As coordinator, review and approve it at `/review`, then confirm the allocation plan from `/coordinator`.
-6. Visit **Operations** to show the live risk queue, partner-capacity view, and impact metrics generated from Neon data.
+6. Visit **Operations** to show the live risk queue, Apache ECharts seven-day operational pulse, partner-capacity view, and impact metrics generated from Neon data.
 7. As a volunteer, claim the dispatched pickup and move it through collected and delivered.
 
 This sequence demonstrates the product’s complete operational loop instead of isolated screens.

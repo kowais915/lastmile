@@ -1,5 +1,5 @@
+import { OrganizationSwitcher } from "@clerk/nextjs";
 import { auth, currentUser } from "@clerk/nextjs/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SignOutControl } from "@/components/sign-out-control";
@@ -66,7 +66,7 @@ function TaskAction({ task, emphasize = false }: { task: VolunteerTask; emphasiz
   return <form action={updatePickupTask} className="mt-5">
     <input type="hidden" name="taskId" value={task.id} />
     <input type="hidden" name="action" value={next.action} />
-    {next.action === "delivered" ? <label className="mb-3 block text-sm font-semibold text-[#18231e]">Delivery note <span className="font-normal text-[#68776d]">(optional)</span><textarea name="deliveryNote" maxLength={500} rows={2} placeholder="e.g. Handed to the front-desk team at 2:15 PM" className="mt-2 w-full resize-none rounded-xl border border-[#d8ded8] px-3 py-2.5 font-normal outline-none focus:border-[#5b8265]" /></label> : null}
+    {next.action === "delivered" ? <label className={`mb-3 block text-sm font-semibold ${emphasize ? "text-white" : "text-[#18231e]"}`}>Delivery note <span className={`font-normal ${emphasize ? "text-[#c9d8cd]" : "text-[#68776d]"}`}>(optional)</span><textarea name="deliveryNote" maxLength={500} rows={2} placeholder="e.g. Handed to the front-desk team at 2:15 PM" className="mt-2 w-full resize-none rounded-xl border border-[#d8ded8] bg-white px-3 py-2.5 font-normal text-[#18231e] outline-none placeholder:text-[#68776d] focus:border-[#5b8265]" /></label> : null}
     <SubmitButton pendingChildren={next.action === "claim" ? "Claiming pickup…" : next.action === "collected" ? "Saving collection…" : "Saving delivery…"} className={buttonClass}>{next.label}</SubmitButton>
   </form>;
 }
@@ -102,7 +102,17 @@ export default async function VolunteerPage() {
         <h1 className="mt-2 text-3xl font-semibold tracking-tight">Volunteer fieldboard</h1>
       </div>
       <div className="flex items-center gap-3">
-        <Link href="/portal" className="rounded-xl border border-[#cfd8d0] bg-white px-4 py-2.5 text-sm font-bold text-[#285d3c]">Switch workspace</Link>
+        <OrganizationSwitcher
+          hidePersonal
+          afterSelectOrganizationUrl="/portal"
+          afterCreateOrganizationUrl="/onboarding"
+          appearance={{
+            elements: {
+              rootBox: "max-w-[220px]",
+              organizationSwitcherTrigger: "rounded-xl border border-[#cfd8d0] bg-white px-3 py-2.5 text-sm font-bold text-[#285d3c] hover:bg-[#f2f6ed]",
+            },
+          }}
+        />
         <SignOutControl />
       </div>
     </header>
