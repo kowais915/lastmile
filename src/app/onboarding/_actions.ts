@@ -2,7 +2,7 @@
 
 import { auth, clerkClient } from "@clerk/nextjs/server";
 
-import { createWorkspace } from "@/lib/db";
+import { createWorkspace, seedStarterPartners } from "@/lib/db";
 
 export async function finishOnboarding(input: {
   clerkOrganizationId: string;
@@ -21,12 +21,13 @@ export async function finishOnboarding(input: {
   }
 
   try {
-    await createWorkspace({
+    const workspace = await createWorkspace({
       clerkOrganizationId: orgId,
       name: workspaceName,
       timezone: input.timezone,
       userId,
     });
+    await seedStarterPartners(workspace.id);
 
     const client = await clerkClient();
     await client.users.updateUserMetadata(userId, {

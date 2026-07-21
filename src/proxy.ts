@@ -16,6 +16,9 @@ export default clerkMiddleware(async (auth, request) => {
       signInUrl.searchParams.set("redirect_url", request.nextUrl.href);
       return NextResponse.redirect(signInUrl);
     }
+    if (request.nextUrl.pathname === "/") {
+      return NextResponse.redirect(new URL("/portal", request.url));
+    }
   }
 });
 

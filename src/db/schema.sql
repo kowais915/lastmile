@@ -164,3 +164,27 @@ CREATE TABLE donation_submissions (
 
 CREATE INDEX donation_submissions_review_idx
   ON donation_submissions (organization_id, status, expires_at);
+
+-- Role assignment is explicit. Clerk owns the organization invitation; this
+-- table owns the Last Mile role and, for partner managers, partner assignment.
+CREATE TABLE member_role_invitations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  email text NOT NULL,
+  role membership_role NOT NULL CHECK (role IN ('partner_manager', 'volunteer')),
+  partner_id uuid REFERENCES partners(id) ON DELETE SET NULL,
+  clerk_invitation_id text NOT NULL UNIQUE,
+  created_by text NOT NULL,
+  claimed_by text,
+  claimed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (organization_id, email)
+);
+
+ALTER TABLE memberships ADD COLUMN partner_id uuid REFERENCES partners(id) ON DELETE SET NULL;
+
+CREATE INDEX member_role_invitations_claim_idx
+  ON member_role_invitations (organization_id, email)
+  WHERE claimed_at IS NULL;
+CREATE INDEX pickup_tasks_volunteer_status_idx
+  ON pickup_tasks (organization_id, volunteer_user_id, status);
