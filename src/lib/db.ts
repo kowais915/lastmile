@@ -109,23 +109,48 @@ export async function ensureWorkspaceMember(organizationId: string, userId: stri
 export async function getVolunteerTasks(organizationId: string, userId: string) {
   const rows = await sql()`
     SELECT task.id, task.status, task.delivery_note, task.volunteer_user_id,
-      allocation.portions, partner.name AS partner_name
+      task.claimed_at, task.delivered_at, allocation.portions,
+      partner.name AS partner_name, partner.service_area AS partner_service_area,
+      donation.donor_name, donation.collection_window_start, donation.collection_window_end,
+      donation.expires_at, item.name AS item_name, item.dietary_tags
     FROM pickup_tasks task
     JOIN allocations allocation ON allocation.id = task.allocation_id
     JOIN partner_needs need ON need.id = allocation.partner_need_id
     JOIN partners partner ON partner.id = need.partner_id
+    JOIN allocation_plans plan ON plan.id = allocation.allocation_plan_id
+    JOIN donations donation ON donation.id = plan.donation_id
+    JOIN donation_items item ON item.id = allocation.donation_item_id
     WHERE task.organization_id = ${organizationId}
       AND (task.volunteer_user_id IS NULL OR task.volunteer_user_id = ${userId})
-    ORDER BY task.created_at DESC
+    ORDER BY CASE WHEN task.volunteer_user_id = ${userId} THEN 0 ELSE 1 END,
+      donation.collection_window_end ASC, donation.expires_at ASC
   `;
   return rows.map((row) => ({
     id: String((row as Record<string, unknown>).id),
     status: String((row as Record<string, unknown>).status),
+    deliveryNote: (row as Record<string, unknown>).delivery_note
+      ? String((row as Record<string, unknown>).delivery_note)
+      : null,
     volunteerUserId: (row as Record<string, unknown>).volunteer_user_id
       ? String((row as Record<string, unknown>).volunteer_user_id)
       : null,
     portions: Number((row as Record<string, unknown>).portions),
     partnerName: String((row as Record<string, unknown>).partner_name),
+    partnerServiceArea: (row as Record<string, unknown>).partner_service_area
+      ? String((row as Record<string, unknown>).partner_service_area)
+      : null,
+    donorName: String((row as Record<string, unknown>).donor_name),
+    itemName: String((row as Record<string, unknown>).item_name),
+    dietaryTags: ((row as Record<string, unknown>).dietary_tags as string[]) ?? [],
+    collectionWindowStart: new Date(String((row as Record<string, unknown>).collection_window_start)).toISOString(),
+    collectionWindowEnd: new Date(String((row as Record<string, unknown>).collection_window_end)).toISOString(),
+    expiresAt: new Date(String((row as Record<string, unknown>).expires_at)).toISOString(),
+    claimedAt: (row as Record<string, unknown>).claimed_at
+      ? new Date(String((row as Record<string, unknown>).claimed_at)).toISOString()
+      : null,
+    deliveredAt: (row as Record<string, unknown>).delivered_at
+      ? new Date(String((row as Record<string, unknown>).delivered_at)).toISOString()
+      : null,
   }));
 }
 
@@ -140,14 +165,18 @@ export async function claimVolunteerTask({ organizationId, userId, taskId }: { o
   if (!rows[0]) throw new Error("This pickup was just claimed by another volunteer.");
 }
 
-export async function advanceVolunteerTask({ organizationId, userId, taskId, nextStatus }: {
-  organizationId: string; userId: string; taskId: string; nextStatus: "collected" | "delivered";
+export async function advanceVolunteerTask({ organizationId, userId, taskId, nextStatus, deliveryNote }: {
+  organizationId: string; userId: string; taskId: string; nextStatus: "collected" | "delivered"; deliveryNote?: string;
 }) {
   if (await getMembershipRole(organizationId, userId) !== "volunteer") throw new Error("Only volunteers can update pickup tasks.");
   const expectedStatus = nextStatus === "collected" ? "claimed" : "collected";
+  const note = deliveryNote?.trim() || null;
+  if (note && note.length > 500) throw new Error("Keep the delivery note under 500 characters.");
   const rows = await sql()`
     UPDATE pickup_tasks
-    SET status = ${nextStatus}, delivered_at = CASE WHEN ${nextStatus} = 'delivered' THEN now() ELSE delivered_at END,
+    SET status = ${nextStatus},
+      delivery_note = CASE WHEN ${nextStatus} = 'delivered' THEN ${note} ELSE delivery_note END,
+      delivered_at = CASE WHEN ${nextStatus} = 'delivered' THEN now() ELSE delivered_at END,
       updated_at = now()
     WHERE id = ${taskId} AND organization_id = ${organizationId}
       AND volunteer_user_id = ${userId} AND status = ${expectedStatus}

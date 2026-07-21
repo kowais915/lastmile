@@ -13,7 +13,15 @@ export async function updatePickupTask(formData: FormData) {
   const taskId = String(formData.get("taskId") ?? "");
   const action = String(formData.get("action") ?? "");
   if (action === "claim") await claimVolunteerTask({ organizationId: workspace.id, userId, taskId });
-  else if (action === "collected" || action === "delivered") await advanceVolunteerTask({ organizationId: workspace.id, userId, taskId, nextStatus: action });
+  else if (action === "collected" || action === "delivered") {
+    await advanceVolunteerTask({
+      organizationId: workspace.id,
+      userId,
+      taskId,
+      nextStatus: action,
+      deliveryNote: String(formData.get("deliveryNote") ?? ""),
+    });
+  }
   else throw new Error("Unknown pickup action.");
   revalidatePath("/volunteer");
   revalidatePath("/coordinator");

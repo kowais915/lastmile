@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { SubmitButton } from "@/components/submit-button";
 import { getPublicWorkspaces } from "@/lib/db";
 
 import { createDonationSubmission } from "./actions";
@@ -28,7 +29,7 @@ export default async function DonatePage({ searchParams }: { searchParams: Promi
             <label className="text-sm font-semibold">Collection ends<input name="collectionWindowEnd" type="datetime-local" required className="mt-2 w-full rounded-xl border border-[#d8ded8] px-4 py-3" /></label>
             <label className="text-sm font-semibold sm:col-span-2">Food expires at<input name="expiresAt" type="datetime-local" required className="mt-2 w-full rounded-xl border border-[#d8ded8] px-4 py-3" /></label>
             <label className="text-sm font-semibold sm:col-span-2">Notes for the coordinator <span className="font-normal text-[#748078]">optional</span><textarea name="notes" rows={3} className="mt-2 w-full rounded-xl border border-[#d8ded8] px-4 py-3" /></label>
-            <button className="rounded-xl bg-[#183d2a] px-5 py-3.5 text-sm font-bold text-white hover:bg-[#275d42] sm:col-span-2">Send donation details</button>
+            <SubmitButton pendingChildren="Sending donation details…" className="rounded-xl bg-[#183d2a] px-5 py-3.5 text-sm font-bold text-white hover:bg-[#275d42] disabled:cursor-wait disabled:opacity-70 sm:col-span-2">Send donation details</SubmitButton>
           </form>}
         </section>
       </div>

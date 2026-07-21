@@ -21,6 +21,7 @@ function OnboardingContent() {
   const [timezone, setTimezone] = useState("UTC");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<"accepting" | "opening" | null>(null);
   const [path, setPath] = useState<"choose" | "create" | "join">("choose");
   const missingWorkspace = searchParams.get("workspace") === "missing";
   const canSetUpActiveOrganization = Boolean(orgId && orgRole === "org:admin");
@@ -71,6 +72,7 @@ function OnboardingContent() {
   async function selectTeam(organizationId: string) {
     setError("");
     setIsSaving(true);
+    setPendingAction("opening");
     try {
       await setActive({ organization: organizationId });
       router.replace("/portal");
@@ -78,12 +80,14 @@ function OnboardingContent() {
     } catch {
       setError("We could not open that organization. Please try again.");
       setIsSaving(false);
+      setPendingAction(null);
     }
   }
 
   async function acceptInvitation(invitation: NonNullable<typeof userInvitations.data>[number]) {
     setError("");
     setIsSaving(true);
+    setPendingAction("accepting");
     try {
       await invitation.accept();
       await setActive({ organization: invitation.publicOrganizationData.id });
@@ -92,6 +96,7 @@ function OnboardingContent() {
     } catch {
       setError("We could not accept that invitation. Please use the invitation email or try again.");
       setIsSaving(false);
+      setPendingAction(null);
     }
   }
 
@@ -128,8 +133,8 @@ function OnboardingContent() {
           <p className="mt-3 leading-7 text-[#68776d]">Your coordinator decides whether you are a partner manager or volunteer. Accept their invitation or select a team you already belong to.</p>
           <div className="mt-7 space-y-3">
             {!organizationsLoaded ? <p className="text-sm text-[#68776d]">Loading your teams…</p> : null}
-            {userInvitations.data?.map((invitation) => <button key={invitation.id} disabled={isSaving} onClick={() => acceptInvitation(invitation)} className="w-full rounded-2xl border border-[#d8ded8] p-5 text-left transition hover:border-[#4d8b61] hover:bg-[#f3f8f0]"><p className="font-semibold">Accept invitation to {invitation.publicOrganizationData.name}</p><p className="mt-1 text-sm text-[#68776d]">Your coordinator assigned your operating role.</p></button>)}
-            {userMemberships.data?.map((membership) => <button key={membership.id} disabled={isSaving} onClick={() => selectTeam(membership.organization.id)} className="w-full rounded-2xl border border-[#d8ded8] p-5 text-left transition hover:border-[#4d8b61] hover:bg-[#f3f8f0]"><p className="font-semibold">Open {membership.organization.name}</p><p className="mt-1 text-sm text-[#68776d]">Continue as a team member.</p></button>)}
+            {userInvitations.data?.map((invitation) => <button key={invitation.id} disabled={isSaving} aria-busy={isSaving && pendingAction === "accepting"} onClick={() => acceptInvitation(invitation)} className="w-full rounded-2xl border border-[#d8ded8] p-5 text-left transition hover:border-[#4d8b61] hover:bg-[#f3f8f0] disabled:cursor-wait disabled:opacity-70"><p className="font-semibold">{isSaving && pendingAction === "accepting" ? "Accepting invitation…" : `Accept invitation to ${invitation.publicOrganizationData.name}`}</p><p className="mt-1 text-sm text-[#68776d]">Your coordinator assigned your operating role.</p></button>)}
+            {userMemberships.data?.map((membership) => <button key={membership.id} disabled={isSaving} aria-busy={isSaving && pendingAction === "opening"} onClick={() => selectTeam(membership.organization.id)} className="w-full rounded-2xl border border-[#d8ded8] p-5 text-left transition hover:border-[#4d8b61] hover:bg-[#f3f8f0] disabled:cursor-wait disabled:opacity-70"><p className="font-semibold">{isSaving && pendingAction === "opening" ? "Opening workspace…" : `Open ${membership.organization.name}`}</p><p className="mt-1 text-sm text-[#68776d]">Continue as a team member.</p></button>)}
             {organizationsLoaded && !userInvitations.data?.length && !userMemberships.data?.length ? <div className="rounded-2xl border border-dashed border-[#cfd8d0] p-5 text-sm leading-6 text-[#68776d]">No team invitations yet. Ask your coordinator to invite the email address you used to sign up.</div> : null}
           </div>
           {error ? <p className="mt-5 rounded-xl bg-[#fff0ed] px-4 py-3 text-sm text-[#a33b27]">{error}</p> : null}

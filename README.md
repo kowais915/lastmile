@@ -13,8 +13,8 @@
   <a href="https://clerk.com"><img src="https://cdn.simpleicons.org/clerk/6C47FF" alt="Clerk" width="32" height="32" /></a>&nbsp;
   <a href="https://neon.com"><img src="https://cdn.simpleicons.org/neon/00E699" alt="Neon" width="32" height="32" /></a>&nbsp;
   <a href="https://www.postgresql.org"><img src="https://cdn.simpleicons.org/postgresql/4169E1" alt="PostgreSQL" width="32" height="32" /></a>&nbsp;
-  <a href="https://vercel.com"><img src="https://cdn.simpleicons.org/vercel/000000" alt="Vercel" width="32" height="32" /></a>&nbsp;
-  <a href="https://openai.com"><img src="https://cdn.simpleicons.org/openai/412991" alt="OpenAI" width="32" height="32" /></a>
+  <a href="https://vercel.com"><img src="https://img.shields.io/badge/Vercel-000000?style=flat-square&amp;logo=vercel&amp;logoColor=white" alt="Vercel" height="32" /></a>&nbsp;
+  <a href="https://openai.com"><img src="https://img.shields.io/badge/OpenAI-412991?style=flat-square&amp;logo=openai&amp;logoColor=white" alt="OpenAI" height="32" /></a>
 </p>
 
 Built for **OpenAI Build Week 2026** in the **Work & Productivity** category.
@@ -34,14 +34,31 @@ Last Mile is a role-aware rescue workspace that moves a donation from public lis
 | Partner manager | Keeps their organization’s capacity, dietary fit, urgency, and availability current. | `/partner` |
 | Volunteer | Claims pickup tasks and records collection/delivery progress. | `/volunteer` |
 
+## How Last Mile works
+
 ```mermaid
-flowchart LR
-  D["Donor listing"] --> R["Coordinator review"]
-  R --> A["Explainable allocation plan"]
-  A --> C["Coordinator confirms"]
-  C --> V["Volunteer claims pickup"]
-  V --> H["Collected → delivered handoff"]
-  P["Partner capacity & urgency"] --> A
+flowchart TB
+  donor["Donor<br/>Lists surplus food"] --> intake["Public donation intake<br/>Expiry, collection window, portions, dietary tags"]
+  intake --> review["Coordinator review queue<br/>Verifies the listing"]
+
+  partner["Partner manager<br/>Updates capacity, urgency, dietary fit, availability"] --> engine
+  review -->|"Approved"| engine["Explainable allocation engine<br/>Balances urgency, expiry risk, capacity, fit, and fair access"]
+
+  engine --> draft["Draft allocation plan<br/>Reasons and scores stay attached to the decision"]
+  draft --> coordinator["Coordinator confirms<br/>Dispatch is a deliberate operational decision"]
+  coordinator --> task["Pickup task<br/>Created for each confirmed allocation"]
+  volunteer["Volunteer<br/>Claims the task"] --> task
+  task --> collect["Collected"] --> deliver["Delivered + optional field note"]
+  deliver --> audit["Auditable rescue outcome<br/>Live status for the whole workspace"]
+
+  classDef entry fill:#eef6ec,stroke:#4d8b61,color:#18231e,stroke-width:2px;
+  classDef decision fill:#183d2a,stroke:#183d2a,color:#ffffff,stroke-width:2px;
+  classDef action fill:#f7f0df,stroke:#b38027,color:#18231e,stroke-width:2px;
+  classDef outcome fill:#e7effb,stroke:#4b76b9,color:#18231e,stroke-width:2px;
+  class donor,partner,volunteer,intake entry;
+  class review,engine,draft,coordinator decision;
+  class task,collect,deliver action;
+  class audit outcome;
 ```
 
 ### Core capabilities
@@ -56,6 +73,50 @@ flowchart LR
 - Tenant-scoped Neon Postgres data so each rescue organization sees only its own operations.
 
 The data model and allocation rationale are documented in [docs/blueprint.md](docs/blueprint.md).
+
+## System architecture
+
+```mermaid
+flowchart TB
+  subgraph clients["Role-specific web experiences"]
+    public["Public donor form<br/>/donate"]
+    coordinatorUI["Coordinator workspace<br/>/coordinator · /review · /team"]
+    partnerUI["Partner workspace<br/>/partner"]
+    volunteerUI["Volunteer fieldboard<br/>/volunteer"]
+  end
+
+  clerk["Clerk<br/>Authentication, organizations, invitations"]
+  next["Next.js 16 App Router<br/>Server Components · Server Actions · role gates"]
+  neon[("Neon Postgres<br/>Tenant-scoped operational database")]
+
+  public --> next
+  coordinatorUI --> clerk
+  partnerUI --> clerk
+  volunteerUI --> clerk
+  clerk --> next
+  next --> neon
+
+  subgraph data["Core operational records"]
+    workspaces["Organizations + memberships<br/>Roles and partner assignments"]
+    supply["Donation submissions + donations + items"]
+    allocation["Partner needs + allocation plans + allocations"]
+    handoffs["Pickup tasks + audit events"]
+  end
+
+  neon --- workspaces
+  neon --- supply
+  neon --- allocation
+  neon --- handoffs
+
+  classDef surface fill:#eef6ec,stroke:#4d8b61,color:#18231e,stroke-width:2px;
+  classDef service fill:#183d2a,stroke:#183d2a,color:#ffffff,stroke-width:2px;
+  classDef store fill:#e7effb,stroke:#4b76b9,color:#18231e,stroke-width:2px;
+  classDef record fill:#f7f0df,stroke:#b38027,color:#18231e,stroke-width:1.5px;
+  class public,coordinatorUI,partnerUI,volunteerUI surface;
+  class clerk,next service;
+  class neon store;
+  class workspaces,supply,allocation,handoffs record;
+```
 
 ## Why this fits OpenAI Build Week
 
