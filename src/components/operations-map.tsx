@@ -115,7 +115,7 @@ export function OperationsMap({ routes, title = "Live route map" }: { routes: Ma
   }, [libraryReady, mappedRoutes]);
 
   if (!mappedRoutes.length) {
-    return <section className="rounded-[1.75rem] border border-dashed border-[#cfd8d0] bg-[#f8faf6] p-6 text-center"><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">ROUTE MAP</p><h2 className="mt-2 text-xl font-semibold">{title}</h2><p className="mx-auto mt-3 max-w-md text-sm leading-6 text-[#68776d]">This workspace has no handoffs with pickup and destination coordinates yet.</p></section>;
+    return <section className="rounded-[1.75rem] border border-dashed border-[#cfd8d0] bg-[#f8faf6] p-5 shadow-sm sm:p-6"><div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left"><div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-[#e7f0e6] text-xl text-[#285d3c]" aria-hidden="true">⌖</div><div className="max-w-2xl"><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">ROUTE MAP</p><h2 className="mt-1 text-xl font-semibold">{title}</h2><p className="mt-2 text-sm leading-6 text-[#68776d]">The map will appear when a dispatched handoff has both pickup and destination locations.</p></div><span className="shrink-0 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-[#52675a]">No mapped handoffs</span></div></section>;
   }
 
   return <section className="overflow-hidden rounded-[1.75rem] border border-[#e2e2d9] bg-white shadow-sm">

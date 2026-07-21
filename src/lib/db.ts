@@ -493,6 +493,117 @@ export async function getCoordinatorDashboard(organizationId: string) {
   };
 }
 
+export async function getOperationsIntelligence(organizationId: string) {
+  const [impactRows, signalRows, capacityRows] = await Promise.all([
+    sql()`WITH task_metrics AS (
+      SELECT
+        COALESCE(SUM(allocation.portions) FILTER (WHERE task.status = 'delivered'), 0)::int AS meals_rescued,
+        COALESCE(SUM(allocation.portions) FILTER (WHERE task.status = 'delivered' AND task.delivered_at <= donation.expires_at), 0)::int AS meals_saved_before_expiry,
+        COUNT(*) FILTER (WHERE task.status = 'delivered')::int AS delivered_handoffs,
+        COUNT(*) FILTER (WHERE task.status = 'delivered' AND task.delivered_at <= donation.expires_at)::int AS on_time_handoffs,
+        COUNT(*) FILTER (WHERE task.status <> 'cancelled')::int AS total_handoffs,
+        COUNT(*) FILTER (WHERE task.status IN ('claimed', 'collected'))::int AS active_handoffs,
+        COUNT(DISTINCT task.volunteer_user_id) FILTER (WHERE task.status IN ('claimed', 'collected', 'delivered'))::int AS active_volunteers
+      FROM pickup_tasks task
+      JOIN allocations allocation ON allocation.id = task.allocation_id
+      JOIN allocation_plans plan ON plan.id = allocation.allocation_plan_id
+      JOIN donations donation ON donation.id = plan.donation_id
+      WHERE task.organization_id = ${organizationId}
+    ), dispatch_metrics AS (
+      SELECT ROUND(AVG(EXTRACT(EPOCH FROM (plan.confirmed_at - donation.created_at)) / 60))::int AS average_dispatch_minutes
+      FROM allocation_plans plan
+      JOIN donations donation ON donation.id = plan.donation_id
+      WHERE plan.organization_id = ${organizationId} AND plan.status = 'confirmed' AND plan.confirmed_at IS NOT NULL
+    )
+    SELECT task_metrics.*, dispatch_metrics.average_dispatch_minutes
+    FROM task_metrics CROSS JOIN dispatch_metrics`,
+    sql()`WITH signals AS (
+      SELECT 'critical'::text AS severity, 'Review an expiring donation'::text AS title,
+        donation.item_name || ' from ' || donation.donor_name || ' needs review before it expires.' AS detail,
+        donation.expires_at AS due_at, '/review'::text AS href
+      FROM donation_submissions donation
+      WHERE donation.organization_id = ${organizationId} AND donation.status = 'pending'
+        AND donation.expires_at <= now() + interval '24 hours'
+      UNION ALL
+      SELECT 'urgent'::text AS severity, 'Confirm a ready allocation'::text AS title,
+        item.name || ' from ' || donation.donor_name || ' has a draft plan waiting for dispatch.' AS detail,
+        donation.expires_at AS due_at, '/coordinator'::text AS href
+      FROM allocation_plans plan
+      JOIN donations donation ON donation.id = plan.donation_id
+      JOIN donation_items item ON item.donation_id = donation.id
+      WHERE plan.organization_id = ${organizationId} AND plan.status = 'draft'
+        AND donation.expires_at <= now() + interval '12 hours'
+      UNION ALL
+      SELECT 'urgent'::text AS severity, 'Find a volunteer for pickup'::text AS title,
+        item.name || ' is still unclaimed; collection closes soon.' AS detail,
+        donation.collection_window_end AS due_at, '/volunteer'::text AS href
+      FROM pickup_tasks task
+      JOIN allocations allocation ON allocation.id = task.allocation_id
+      JOIN allocation_plans plan ON plan.id = allocation.allocation_plan_id
+      JOIN donations donation ON donation.id = plan.donation_id
+      JOIN donation_items item ON item.id = allocation.donation_item_id
+      WHERE task.organization_id = ${organizationId} AND task.status = 'unclaimed'
+        AND donation.collection_window_end <= now() + interval '2 hours'
+      UNION ALL
+      SELECT 'elevated'::text AS severity, 'Check an in-progress handoff'::text AS title,
+        item.name || ' has not been updated recently.' AS detail,
+        task.updated_at AS due_at, '/volunteer'::text AS href
+      FROM pickup_tasks task
+      JOIN allocations allocation ON allocation.id = task.allocation_id
+      JOIN allocation_plans plan ON plan.id = allocation.allocation_plan_id
+      JOIN donations donation ON donation.id = plan.donation_id
+      JOIN donation_items item ON item.id = allocation.donation_item_id
+      WHERE task.organization_id = ${organizationId} AND task.status IN ('claimed', 'collected')
+        AND task.updated_at <= now() - interval '90 minutes'
+    )
+    SELECT severity, title, detail, due_at, href FROM signals
+    ORDER BY CASE severity WHEN 'critical' THEN 1 WHEN 'urgent' THEN 2 ELSE 3 END, due_at ASC
+    LIMIT 6`,
+    sql()`SELECT partner.name, need.requested_portions, need.remaining_capacity, need.urgency, need.available_until
+      FROM partners partner
+      JOIN LATERAL (
+        SELECT requested_portions, remaining_capacity, urgency, available_until
+        FROM partner_needs
+        WHERE partner_id = partner.id AND organization_id = ${organizationId}
+        ORDER BY updated_at DESC
+        LIMIT 1
+      ) need ON true
+      WHERE partner.organization_id = ${organizationId} AND partner.active = true
+      ORDER BY (need.remaining_capacity::numeric / NULLIF(need.requested_portions, 0)) ASC, need.available_until ASC
+      LIMIT 5`,
+  ]);
+
+  const impact = (impactRows[0] ?? {}) as Record<string, unknown>;
+  const deliveredHandoffs = Number(impact.delivered_handoffs ?? 0);
+
+  return {
+    metrics: {
+      mealsRescued: Number(impact.meals_rescued ?? 0),
+      mealsSavedBeforeExpiry: Number(impact.meals_saved_before_expiry ?? 0),
+      activeHandoffs: Number(impact.active_handoffs ?? 0),
+      activeVolunteers: Number(impact.active_volunteers ?? 0),
+      averageDispatchMinutes: impact.average_dispatch_minutes === null ? null : Number(impact.average_dispatch_minutes),
+      onTimeDeliveryRate: deliveredHandoffs ? Math.round((Number(impact.on_time_handoffs ?? 0) / deliveredHandoffs) * 100) : null,
+    },
+    signals: signalRows.map((row) => {
+      const signal = row as Record<string, unknown>;
+      return {
+        severity: String(signal.severity) as "critical" | "urgent" | "elevated",
+        title: String(signal.title), detail: String(signal.detail), href: String(signal.href),
+        dueAt: new Date(String(signal.due_at)).toISOString(),
+      };
+    }),
+    partnerCapacity: capacityRows.map((row) => {
+      const capacity = row as Record<string, unknown>;
+      return {
+        name: String(capacity.name), requestedPortions: Number(capacity.requested_portions),
+        remainingCapacity: Number(capacity.remaining_capacity), urgency: String(capacity.urgency),
+        availableUntil: new Date(String(capacity.available_until)).toISOString(),
+      };
+    }),
+  };
+}
+
 export async function approveSubmission({
   submissionId,
   organizationId,

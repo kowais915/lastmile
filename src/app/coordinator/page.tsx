@@ -25,7 +25,7 @@ export default async function CoordinatorPage() {
   return <main className="min-h-screen bg-[#f7f6f2] text-[#18231e]">
     <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-7">
       <div><p className="text-xs font-bold tracking-[0.2em] text-[#5b8265]">{workspace.name.toUpperCase()}</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">Last Mile command board</h1></div>
-      <nav className="flex flex-wrap gap-3 text-sm font-semibold"><Link href="/donate" className="rounded-xl border border-[#cfd8d0] bg-white px-4 py-2.5 text-[#285d3c]">List food</Link><Link href="/team" className="rounded-xl border border-[#cfd8d0] bg-white px-4 py-2.5 text-[#285d3c]">Team access</Link><Link href="/review" className="rounded-xl bg-[#183d2a] px-4 py-2.5 text-white">Review queue</Link><SignOutControl /></nav>
+      <nav className="flex flex-wrap gap-3 text-sm font-semibold"><Link href="/donate" className="rounded-xl border border-[#cfd8d0] bg-white px-4 py-2.5 text-[#285d3c]">List food</Link><Link href="/team" className="rounded-xl border border-[#cfd8d0] bg-white px-4 py-2.5 text-[#285d3c]">Team access</Link><Link href="/operations" className="rounded-xl border border-[#cfd8d0] bg-white px-4 py-2.5 text-[#285d3c]">Operations</Link><Link href="/review" className="rounded-xl bg-[#183d2a] px-4 py-2.5 text-white">Review queue</Link><SignOutControl /></nav>
     </header>
 
     <div className="mx-auto max-w-6xl px-6 pb-14">

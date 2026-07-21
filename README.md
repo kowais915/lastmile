@@ -32,7 +32,7 @@ Last Mile is a role-aware rescue workspace that moves a donation from public lis
 | Actor | Purpose | Product surface |
 | --- | --- | --- |
 | Donor | List surplus food without creating an account. | `/donate` |
-| Coordinator | Creates a rescue workspace, invites the team, reviews donations, confirms allocation plans, and dispatches handoffs. | `/coordinator`, `/review`, `/team` |
+| Coordinator | Creates a rescue workspace, invites the team, reviews donations, confirms allocation plans, dispatches handoffs, and monitors operational risk. | `/coordinator`, `/operations`, `/review`, `/team` |
 | Partner manager | Keeps their organization’s capacity, dietary fit, urgency, and availability current. | `/partner` |
 | Volunteer | Claims pickup tasks and records collection/delivery progress. | `/volunteer` |
 
@@ -72,6 +72,7 @@ flowchart TB
 - Role-specific workspaces protected by Clerk organization membership and Last Mile role records.
 - Coordinator invitations that assign either a partner manager (and their partner) or a volunteer before they enter the workspace.
 - Volunteer claim, collection, and delivery lifecycle with an audit trail.
+- Operations intelligence dashboard with meals rescued, before-expiry delivery, dispatch time, partner-capacity coverage, and live risk signals for expiring intake, unsigned plans, unclaimed pickups, and stalled handoffs.
 - Tenant-scoped Neon Postgres data so each rescue organization sees only its own operations.
 
 The data model and allocation rationale are documented in [docs/blueprint.md](docs/blueprint.md).
@@ -82,7 +83,7 @@ The data model and allocation rationale are documented in [docs/blueprint.md](do
 flowchart TB
   subgraph clients["Role-specific web experiences"]
     public["Public donor form<br/>/donate"]
-    coordinatorUI["Coordinator workspace<br/>/coordinator · /review · /team"]
+    coordinatorUI["Coordinator workspace<br/>/coordinator · /operations · /review · /team"]
     partnerUI["Partner workspace<br/>/partner"]
     volunteerUI["Volunteer fieldboard<br/>/volunteer"]
   end
@@ -102,7 +103,7 @@ flowchart TB
     workspaces["Organizations + memberships<br/>Roles and partner assignments"]
     supply["Donation submissions + donations + items"]
     allocation["Partner needs + allocation plans + allocations"]
-    handoffs["Pickup tasks + audit events"]
+    handoffs["Pickup tasks + audit events<br/>Operational risk signals + impact analytics"]
   end
 
   neon --- workspaces
@@ -140,6 +141,7 @@ Codex and GPT-5.6 were central to the build—not added as an afterthought:
 - Shaped the deterministic allocation workflow and its audit-friendly explanations.
 - Diagnosed production-schema failures and refined the operational coordinator, partner, and volunteer interfaces.
 - Iterated on the responsive dashboards, live route visualization, loading states, and judge walkthrough.
+- Built the operations-intelligence view that turns time-sensitive operational data into transparent alerts and impact metrics, without handing decisions to a black box.
 
 There is **no runtime OpenAI API dependency**: the value to the end user comes from deterministic, inspectable operational logic. That is intentional—coordinators must be able to understand why food was allocated, even under time pressure.
 
@@ -196,7 +198,8 @@ pnpm build
 3. As a partner manager, update capacity, urgency, dietary needs, and availability.
 4. Submit a public donation at `/donate`.
 5. As coordinator, review and approve it at `/review`, then confirm the allocation plan from `/coordinator`.
-6. As a volunteer, claim the dispatched pickup and move it through collected and delivered.
+6. Visit **Operations** to show the live risk queue, partner-capacity view, and impact metrics generated from Neon data.
+7. As a volunteer, claim the dispatched pickup and move it through collected and delivered.
 
 This sequence demonstrates the product’s complete operational loop instead of isolated screens.
 

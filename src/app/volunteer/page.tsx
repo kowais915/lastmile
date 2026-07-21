@@ -141,7 +141,6 @@ export default async function VolunteerPage() {
             <div className="mt-6 max-h-[44rem] space-y-4 overflow-y-auto pr-2">{availableTasks.length ? availableTasks.map((task) => <article key={task.id} className="rounded-2xl border border-[#e5e2d9] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-[#18231e]">{task.itemName} · {task.portions} meals</p><p className="mt-1 text-sm text-[#68776d]">{task.donorName} → {task.partnerName}</p></div><StatusPill status="unclaimed" /></div><TaskDetails task={task} compact /><TaskAction task={task} /></article>) : <div className="rounded-2xl border border-dashed border-[#cfd8d0] px-6 py-8 text-center text-sm text-[#68776d]">No unclaimed pickups right now. New coordinator dispatches will appear here.</div>}</div>
           </section>
 
-          <OperationsMap routes={mapRoutes} title="Pickups and destinations in your queue" />
         </div>
 
         <aside className="space-y-6">
@@ -149,6 +148,10 @@ export default async function VolunteerPage() {
           <section className="rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">YOUR COMPLETED WORK</p><h2 className="mt-2 text-2xl font-semibold">Delivery log</h2></div><p className="text-2xl font-bold text-[#285d3c]">{completedTasks.length}</p></div><div className="mt-5 max-h-[34rem] space-y-3 overflow-y-auto pr-2">{completedTasks.length ? completedTasks.map((task) => <article key={task.id} className="rounded-xl bg-[#f5f7f2] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{task.partnerName}</p><p className="mt-1 text-sm text-[#68776d]">{task.itemName} · {task.portions} meals</p></div><StatusPill status="delivered" /></div>{task.deliveredAt ? <p className="mt-3 text-xs text-[#68776d]">Delivered {localDate(task.deliveredAt)}</p> : null}{task.deliveryNote ? <p className="mt-2 border-l-2 border-[#b8cfba] pl-3 text-sm italic text-[#52675a]">“{task.deliveryNote}”</p> : null}</article>) : <p className="rounded-xl bg-[#f5f7f2] p-4 text-sm leading-6 text-[#68776d]">Completed handoffs will appear here with their delivery time and note.</p>}</div></section>
         </aside>
       </section>
+
+      <div className="mt-6">
+        <OperationsMap routes={mapRoutes} title="Pickups and destinations in your queue" />
+      </div>
     </div>
   </main>;
 }
