@@ -1,5 +1,7 @@
 "use client";
 
+import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
+import Link from "next/link";
 import { useState } from "react";
 
 type Partner = {
@@ -102,8 +104,19 @@ export default function Home() {
           </div>
         </div>
         <div className="hidden items-center gap-3 sm:flex">
+          <Link href="/donate" className="text-sm font-semibold text-[#285d3c] hover:text-[#183d2a]">List food</Link>
+          <Link href="/review" className="text-sm font-semibold text-[#285d3c] hover:text-[#183d2a]">Review queue</Link>
           <span className="rounded-full bg-[#e5efe1] px-3 py-1.5 text-xs font-semibold text-[#2e6b45]">Demo workspace</span>
-          <div className="grid size-9 place-items-center rounded-full bg-[#e7c3a6] text-xs font-bold text-[#633a24]">OM</div>
+          <OrganizationSwitcher
+            appearance={{
+              elements: {
+                rootBox: "max-w-[180px]",
+                organizationSwitcherTrigger: "rounded-xl border border-[#d8ded8] bg-white px-2 py-1.5 hover:bg-[#f2f6ed]",
+              },
+            }}
+            afterCreateOrganizationUrl="/onboarding"
+          />
+          <UserButton appearance={{ elements: { avatarBox: "size-9" } }} />
         </div>
       </header>
 

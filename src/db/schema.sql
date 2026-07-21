@@ -137,3 +137,30 @@ CREATE INDEX donations_organization_status_expiry_idx
   ON donations (organization_id, status, expires_at);
 CREATE INDEX audit_events_organization_entity_idx
   ON audit_events (organization_id, entity_type, entity_id, created_at DESC);
+
+-- Public donor listings enter a coordinator review queue before becoming active donations.
+CREATE TYPE submission_status AS ENUM ('pending', 'approved', 'declined');
+
+CREATE TABLE donation_submissions (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id uuid NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+  donor_name text NOT NULL,
+  donor_email text NOT NULL,
+  donor_phone text,
+  item_name text NOT NULL,
+  portions integer NOT NULL CHECK (portions > 0),
+  dietary_tags text[] NOT NULL DEFAULT '{}',
+  collection_window_start timestamptz NOT NULL,
+  collection_window_end timestamptz NOT NULL,
+  expires_at timestamptz NOT NULL,
+  notes text,
+  status submission_status NOT NULL DEFAULT 'pending',
+  reviewed_by text,
+  reviewed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  CHECK (collection_window_end > collection_window_start),
+  CHECK (expires_at >= collection_window_end)
+);
+
+CREATE INDEX donation_submissions_review_idx
+  ON donation_submissions (organization_id, status, expires_at);
