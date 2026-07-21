@@ -9,9 +9,9 @@ export async function finishOnboarding(input: {
   workspaceName: string;
   timezone: string;
 }) {
-  const { userId, orgId } = await auth();
+  const { userId, orgId, orgRole } = await auth();
 
-  if (!userId || !orgId || orgId !== input.clerkOrganizationId) {
+  if (!userId || !orgId || orgId !== input.clerkOrganizationId || orgRole !== "org:admin") {
     return { error: "Choose your workspace again before continuing." };
   }
 

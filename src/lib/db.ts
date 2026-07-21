@@ -309,7 +309,7 @@ export async function getTeamOverview(organizationId: string) {
     sql()`SELECT m.clerk_user_id, m.role, p.name AS partner_name
       FROM memberships m LEFT JOIN partners p ON p.id = m.partner_id
       WHERE m.organization_id = ${organizationId} ORDER BY m.created_at ASC`,
-    sql()`SELECT email, role, p.name AS partner_name, created_at
+    sql()`SELECT i.email, i.role, p.name AS partner_name, i.created_at
       FROM member_role_invitations i LEFT JOIN partners p ON p.id = i.partner_id
       WHERE i.organization_id = ${organizationId} AND i.claimed_at IS NULL ORDER BY i.created_at DESC`,
   ]);

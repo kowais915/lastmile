@@ -12,4 +12,5 @@ export async function approveDonationSubmission(formData: FormData) {
   if (!workspace) throw new Error("Complete workspace setup before reviewing donations.");
   await approveSubmission({ submissionId: String(formData.get("submissionId")), organizationId: workspace.id, userId });
   revalidatePath("/review");
+  revalidatePath("/coordinator");
 }
