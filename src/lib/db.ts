@@ -111,8 +111,12 @@ export async function getVolunteerTasks(organizationId: string, userId: string) 
     SELECT task.id, task.status, task.delivery_note, task.volunteer_user_id,
       task.claimed_at, task.delivered_at, allocation.portions,
       partner.name AS partner_name, partner.service_area AS partner_service_area,
+      (to_jsonb(partner) ->> 'latitude')::double precision AS partner_latitude,
+      (to_jsonb(partner) ->> 'longitude')::double precision AS partner_longitude,
       donation.donor_name, donation.collection_window_start, donation.collection_window_end,
-      donation.expires_at, item.name AS item_name, item.dietary_tags
+      donation.expires_at, item.name AS item_name, item.dietary_tags,
+      (to_jsonb(donation) ->> 'pickup_latitude')::double precision AS pickup_latitude,
+      (to_jsonb(donation) ->> 'pickup_longitude')::double precision AS pickup_longitude
     FROM pickup_tasks task
     JOIN allocations allocation ON allocation.id = task.allocation_id
     JOIN partner_needs need ON need.id = allocation.partner_need_id
@@ -139,6 +143,12 @@ export async function getVolunteerTasks(organizationId: string, userId: string) 
     partnerServiceArea: (row as Record<string, unknown>).partner_service_area
       ? String((row as Record<string, unknown>).partner_service_area)
       : null,
+    partnerLatitude: (row as Record<string, unknown>).partner_latitude === null
+      ? null
+      : Number((row as Record<string, unknown>).partner_latitude),
+    partnerLongitude: (row as Record<string, unknown>).partner_longitude === null
+      ? null
+      : Number((row as Record<string, unknown>).partner_longitude),
     donorName: String((row as Record<string, unknown>).donor_name),
     itemName: String((row as Record<string, unknown>).item_name),
     dietaryTags: ((row as Record<string, unknown>).dietary_tags as string[]) ?? [],
@@ -151,6 +161,12 @@ export async function getVolunteerTasks(organizationId: string, userId: string) 
     deliveredAt: (row as Record<string, unknown>).delivered_at
       ? new Date(String((row as Record<string, unknown>).delivered_at)).toISOString()
       : null,
+    pickupLatitude: (row as Record<string, unknown>).pickup_latitude === null
+      ? null
+      : Number((row as Record<string, unknown>).pickup_latitude),
+    pickupLongitude: (row as Record<string, unknown>).pickup_longitude === null
+      ? null
+      : Number((row as Record<string, unknown>).pickup_longitude),
   }));
 }
 
@@ -411,7 +427,7 @@ export async function updateManagedPartnerNeed({ organizationId, userId, request
 }
 
 export async function getCoordinatorDashboard(organizationId: string) {
-  const [draftPlans, tasks] = await Promise.all([
+  const [draftPlans, tasks, mapRoutes, pendingSubmissions] = await Promise.all([
     sql()`SELECT plan.id, donation.donor_name, donation.expires_at, item.name AS item_name, item.available_portions,
       COALESCE(jsonb_agg(jsonb_build_object('partner', partner.name, 'portions', allocation.portions, 'score', allocation.score, 'reason', allocation.explanation) ORDER BY allocation.score DESC)
         FILTER (WHERE allocation.id IS NOT NULL), '[]'::jsonb) AS allocations
@@ -426,6 +442,28 @@ export async function getCoordinatorDashboard(organizationId: string) {
       ORDER BY donation.expires_at ASC`,
     sql()`SELECT task.status, count(*)::int AS count FROM pickup_tasks task
       WHERE task.organization_id = ${organizationId} GROUP BY task.status`,
+    sql()`SELECT task.id, task.status, allocation.portions, item.name AS item_name,
+      donation.donor_name, partner.name AS partner_name, partner.service_area AS partner_service_area,
+      (to_jsonb(donation) ->> 'pickup_latitude')::double precision AS pickup_latitude,
+      (to_jsonb(donation) ->> 'pickup_longitude')::double precision AS pickup_longitude,
+      (to_jsonb(partner) ->> 'latitude')::double precision AS partner_latitude,
+      (to_jsonb(partner) ->> 'longitude')::double precision AS partner_longitude
+      FROM pickup_tasks task
+      JOIN allocations allocation ON allocation.id = task.allocation_id
+      JOIN allocation_plans plan ON plan.id = allocation.allocation_plan_id
+      JOIN donations donation ON donation.id = plan.donation_id
+      JOIN donation_items item ON item.id = allocation.donation_item_id
+      JOIN partner_needs need ON need.id = allocation.partner_need_id
+      JOIN partners partner ON partner.id = need.partner_id
+      WHERE task.organization_id = ${organizationId} AND task.status <> 'delivered'
+      ORDER BY donation.collection_window_end ASC
+      LIMIT 80`,
+    sql()`SELECT id, donor_name, item_name, portions, expires_at, collection_window_end,
+      count(*) OVER ()::int AS total_pending
+      FROM donation_submissions
+      WHERE organization_id = ${organizationId} AND status = 'pending'
+      ORDER BY expires_at ASC
+      LIMIT 3`,
   ]);
   return {
     draftPlans: draftPlans.map((row) => {
@@ -433,6 +471,25 @@ export async function getCoordinatorDashboard(organizationId: string) {
       return { id: String(plan.id), donorName: String(plan.donor_name), expiresAt: new Date(String(plan.expires_at)).toISOString(), itemName: String(plan.item_name), availablePortions: Number(plan.available_portions), allocations: (plan.allocations as Array<{ partner: string; portions: number; score: number; reason: string[] }>) ?? [] };
     }),
     taskCounts: Object.fromEntries(tasks.map((row) => [String((row as Record<string, unknown>).status), Number((row as Record<string, unknown>).count)])),
+    mapRoutes: mapRoutes.map((row) => {
+      const route = row as Record<string, unknown>;
+      return {
+        id: String(route.id), status: String(route.status), itemName: String(route.item_name), portions: Number(route.portions),
+        pickup: { name: String(route.donor_name), latitude: route.pickup_latitude === null ? null : Number(route.pickup_latitude), longitude: route.pickup_longitude === null ? null : Number(route.pickup_longitude) },
+        destination: { name: String(route.partner_name), detail: route.partner_service_area ? String(route.partner_service_area) : null, latitude: route.partner_latitude === null ? null : Number(route.partner_latitude), longitude: route.partner_longitude === null ? null : Number(route.partner_longitude) },
+      };
+    }),
+    pendingSubmissionCount: pendingSubmissions[0]
+      ? Number((pendingSubmissions[0] as Record<string, unknown>).total_pending)
+      : 0,
+    pendingSubmissions: pendingSubmissions.map((row) => {
+      const submission = row as Record<string, unknown>;
+      return {
+        id: String(submission.id), donorName: String(submission.donor_name), itemName: String(submission.item_name),
+        portions: Number(submission.portions), expiresAt: new Date(String(submission.expires_at)).toISOString(),
+        collectionWindowEnd: new Date(String(submission.collection_window_end)).toISOString(),
+      };
+    }),
   };
 }
 

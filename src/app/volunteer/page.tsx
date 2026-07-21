@@ -3,6 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { SignOutControl } from "@/components/sign-out-control";
+import { OperationsMap } from "@/components/operations-map";
 import { SubmitButton } from "@/components/submit-button";
 import { ensureWorkspaceMember, getVolunteerTasks, getWorkspace } from "@/lib/db";
 
@@ -85,6 +86,14 @@ export default async function VolunteerPage() {
   const activeTasks = myTasks.filter((task) => task.status === "claimed" || task.status === "collected");
   const completedTasks = myTasks.filter((task) => task.status === "delivered");
   const focusTask = activeTasks[0] ?? null;
+  const mapRoutes = tasks.map((task) => ({
+    id: task.id,
+    itemName: task.itemName,
+    portions: task.portions,
+    status: task.status,
+    pickup: { name: task.donorName, latitude: task.pickupLatitude, longitude: task.pickupLongitude },
+    destination: { name: task.partnerName, detail: task.partnerServiceArea, latitude: task.partnerLatitude, longitude: task.partnerLongitude },
+  }));
 
   return <main className="min-h-screen bg-[#f7f6f2] text-[#18231e]">
     <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-6 py-7">
@@ -124,18 +133,20 @@ export default async function VolunteerPage() {
               <div className="mt-4 flex flex-wrap gap-2 text-xs font-semibold text-[#e9f3d5]"><span className="rounded-full border border-white/20 px-3 py-1.5">Expires {localDate(focusTask.expiresAt)}</span>{focusTask.dietaryTags.map((tag) => <span key={tag} className="rounded-full border border-white/20 px-3 py-1.5">{tag}</span>)}</div>
               <TaskAction task={focusTask} emphasize />
             </article> : <div className="mt-4 rounded-2xl border border-dashed border-[#cfd8d0] bg-[#f8faf6] px-6 py-8 text-center"><p className="font-semibold">Nothing is in motion for you yet.</p><p className="mt-2 text-sm leading-6 text-[#68776d]">Claim a pickup below when you are ready. Once you do, it stays visible only to you.</p></div>}
-            {activeTasks.length > 1 ? <div className="mt-5"><p className="text-xs font-bold tracking-[0.14em] text-[#65806b]">ADDITIONAL HANDOFFS</p><div className="mt-3 space-y-3">{activeTasks.slice(1).map((task) => <article key={task.id} className="rounded-2xl border border-[#e5e2d9] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{task.itemName} · {task.portions} meals</p><p className="mt-1 text-sm text-[#68776d]">{task.donorName} → {task.partnerName}</p></div><StatusPill status={task.status as keyof typeof statusMeta} /></div><TaskDetails task={task} compact /><TaskAction task={task} /></article>)}</div></div> : null}
+            {activeTasks.length > 1 ? <div className="mt-5"><p className="text-xs font-bold tracking-[0.14em] text-[#65806b]">ADDITIONAL HANDOFFS</p><div className="mt-3 max-h-[34rem] space-y-3 overflow-y-auto pr-2">{activeTasks.slice(1).map((task) => <article key={task.id} className="rounded-2xl border border-[#e5e2d9] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold">{task.itemName} · {task.portions} meals</p><p className="mt-1 text-sm text-[#68776d]">{task.donorName} → {task.partnerName}</p></div><StatusPill status={task.status as keyof typeof statusMeta} /></div><TaskDetails task={task} compact /><TaskAction task={task} /></article>)}</div></div> : null}
           </section>
 
           <section className="rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm">
             <div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">AVAILABLE PICKUPS</p><h2 className="mt-2 text-2xl font-semibold">Choose a handoff</h2></div><p className="text-sm text-[#68776d]">Claiming locks it to you.</p></div>
-            <div className="mt-6 space-y-4">{availableTasks.length ? availableTasks.map((task) => <article key={task.id} className="rounded-2xl border border-[#e5e2d9] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-[#18231e]">{task.itemName} · {task.portions} meals</p><p className="mt-1 text-sm text-[#68776d]">{task.donorName} → {task.partnerName}</p></div><StatusPill status="unclaimed" /></div><TaskDetails task={task} compact /><TaskAction task={task} /></article>) : <div className="rounded-2xl border border-dashed border-[#cfd8d0] px-6 py-8 text-center text-sm text-[#68776d]">No unclaimed pickups right now. New coordinator dispatches will appear here.</div>}</div>
+            <div className="mt-6 max-h-[44rem] space-y-4 overflow-y-auto pr-2">{availableTasks.length ? availableTasks.map((task) => <article key={task.id} className="rounded-2xl border border-[#e5e2d9] p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-[#18231e]">{task.itemName} · {task.portions} meals</p><p className="mt-1 text-sm text-[#68776d]">{task.donorName} → {task.partnerName}</p></div><StatusPill status="unclaimed" /></div><TaskDetails task={task} compact /><TaskAction task={task} /></article>) : <div className="rounded-2xl border border-dashed border-[#cfd8d0] px-6 py-8 text-center text-sm text-[#68776d]">No unclaimed pickups right now. New coordinator dispatches will appear here.</div>}</div>
           </section>
+
+          <OperationsMap routes={mapRoutes} title="Pickups and destinations in your queue" />
         </div>
 
         <aside className="space-y-6">
           <section className="rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm"><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">HANDOFF STEPS</p><ol className="mt-5 space-y-4 text-sm"><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#183d2a] text-xs font-bold text-white">1</span><span><b>Claim</b><br /><span className="text-[#68776d]">Reserve a pickup so other volunteers know it&apos;s covered.</span></span></li><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#183d2a] text-xs font-bold text-white">2</span><span><b>Collect</b><br /><span className="text-[#68776d]">Confirm food is safely in your care.</span></span></li><li className="flex gap-3"><span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#183d2a] text-xs font-bold text-white">3</span><span><b>Deliver</b><br /><span className="text-[#68776d]">Confirm the partner received it and leave an optional note.</span></span></li></ol></section>
-          <section className="rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">YOUR COMPLETED WORK</p><h2 className="mt-2 text-2xl font-semibold">Delivery log</h2></div><p className="text-2xl font-bold text-[#285d3c]">{completedTasks.length}</p></div><div className="mt-5 space-y-3">{completedTasks.length ? completedTasks.map((task) => <article key={task.id} className="rounded-xl bg-[#f5f7f2] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{task.partnerName}</p><p className="mt-1 text-sm text-[#68776d]">{task.itemName} · {task.portions} meals</p></div><StatusPill status="delivered" /></div>{task.deliveredAt ? <p className="mt-3 text-xs text-[#68776d]">Delivered {localDate(task.deliveredAt)}</p> : null}{task.deliveryNote ? <p className="mt-2 border-l-2 border-[#b8cfba] pl-3 text-sm italic text-[#52675a]">“{task.deliveryNote}”</p> : null}</article>) : <p className="rounded-xl bg-[#f5f7f2] p-4 text-sm leading-6 text-[#68776d]">Completed handoffs will appear here with their delivery time and note.</p>}</div></section>
+          <section className="rounded-[1.75rem] border border-[#e5e2d9] bg-white p-6 shadow-sm"><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-bold tracking-[0.16em] text-[#65806b]">YOUR COMPLETED WORK</p><h2 className="mt-2 text-2xl font-semibold">Delivery log</h2></div><p className="text-2xl font-bold text-[#285d3c]">{completedTasks.length}</p></div><div className="mt-5 max-h-[34rem] space-y-3 overflow-y-auto pr-2">{completedTasks.length ? completedTasks.map((task) => <article key={task.id} className="rounded-xl bg-[#f5f7f2] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold">{task.partnerName}</p><p className="mt-1 text-sm text-[#68776d]">{task.itemName} · {task.portions} meals</p></div><StatusPill status="delivered" /></div>{task.deliveredAt ? <p className="mt-3 text-xs text-[#68776d]">Delivered {localDate(task.deliveredAt)}</p> : null}{task.deliveryNote ? <p className="mt-2 border-l-2 border-[#b8cfba] pl-3 text-sm italic text-[#52675a]">“{task.deliveryNote}”</p> : null}</article>) : <p className="rounded-xl bg-[#f5f7f2] p-4 text-sm leading-6 text-[#68776d]">Completed handoffs will appear here with their delivery time and note.</p>}</div></section>
         </aside>
       </section>
     </div>

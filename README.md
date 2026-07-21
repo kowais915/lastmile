@@ -19,6 +19,8 @@
 
 Built for **OpenAI Build Week 2026** in the **Work & Productivity** category.
 
+> **Built with Codex and GPT-5.6.** Last Mile was designed and implemented in Codex with GPT-5.6, from the multi-tenant role model and Neon data layer to the role-specific operational dashboards and workflow refinements.
+
 ## The problem
 
 Food-rescue teams make urgent, high-consequence choices with fragmented information: food expires, partner capacity changes, collection windows close, and volunteers need a clear next action. A donation directory records supply; it does not coordinate the handoff.
@@ -129,9 +131,15 @@ Last Mile is designed to demonstrate the four judging dimensions directly:
 | Potential impact | It targets a concrete operational failure: safe food goes to waste when expiring supply cannot be matched and collected in time. |
 | Quality of idea | It treats fairness and allocation rationale as operational data—not opaque output—so rescue teams can explain and audit every handoff. |
 
-### How Codex and GPT-5.6 were used
+## Built with Codex and GPT-5.6
 
-This is a Codex-built project. GPT-5.6 in Codex was used throughout the implementation to shape the role model and onboarding flow, build the Next.js/Clerk/Neon integration, design the database and allocation workflow, diagnose production-schema issues, and iterate on the role-specific user experience.
+Codex and GPT-5.6 were central to the build—not added as an afterthought:
+
+- Designed the four-actor model and the protected onboarding path that sends each person to the right workspace.
+- Built the Next.js, Clerk, and Neon integration, including tenant-scoped queries and role-aware invitations.
+- Shaped the deterministic allocation workflow and its audit-friendly explanations.
+- Diagnosed production-schema failures and refined the operational coordinator, partner, and volunteer interfaces.
+- Iterated on the responsive dashboards, live route visualization, loading states, and judge walkthrough.
 
 There is **no runtime OpenAI API dependency**: the value to the end user comes from deterministic, inspectable operational logic. That is intentional—coordinators must be able to understand why food was allocated, even under time pressure.
 
@@ -191,18 +199,6 @@ pnpm build
 6. As a volunteer, claim the dispatched pickup and move it through collected and delivered.
 
 This sequence demonstrates the product’s complete operational loop instead of isolated screens.
-
-## OpenAI Build Week submission checklist
-
-- [ ] Select **Work & Productivity** in Devpost.
-- [ ] Add the repository URL and deployment/testing instructions.
-- [ ] Upload a public YouTube demo under three minutes.
-- [ ] In the voiceover, explain what Last Mile does and how Codex and GPT-5.6 were used.
-- [ ] Retrieve the primary Codex `/feedback` session ID and add it to the Devpost form.
-- [ ] If the repository is private, share it with `testing@devpost.com` and `build-week-event@openai.com`.
-- [ ] Add all team members, ensure they accept invitations, and submit the entry (not as a draft).
-
-The official rules list the submission deadline as **July 21, 2026 at 5:00 PM PT**. Verify the current Devpost submission state before relying on this checklist.
 
 ## Development principles
 
